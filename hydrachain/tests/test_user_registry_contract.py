@@ -18,24 +18,27 @@ class TestUserRegistryContract(unittest.TestCase):
         cls.someone_else = tester.k1
         cls.owner_address = tester.a0
         cls.someone_else_address = tester.a1
-        cls.contract = cls.state.abi_contract(code,
-                                              language='solidity',
-                                              sender=cls.owner)
+        cls.contract = cls.state.abi_contract(code, language='solidity', sender=cls.owner)
         cls.initial_admin_begin_block = 1
         cls.begin_block = 10
         cls.user_removed = tester.a3
         cls.user_active = tester.a4
         cls.registrar_removed = tester.a5
-        cls.registrar_active = tester.a6
-        cls.temporary_account = tester.a7
+        cls.registrar_removed_k = tester.k5
+        cls.registrar_parent = tester.a6
+        cls.registrar_parent_k = tester.k6
+        cls.registrar_child = tester.a7
+        cls.registrar_child_k = tester.k7
+        cls.temporary_account = tester.a8
+        cls.temporary_account_k = tester.k8
         cls.snapshot = cls.state.snapshot()
-
 
     def setUp(self):
         self.state.revert(self.snapshot)
         # add some test users/registrars
         self.contract.addUser(self.user_active, self.begin_block)
-        self.contract.addRegistrar(self.registrar_active, self.begin_block)
+        self.contract.addRegistrar(self.registrar_parent, self.begin_block)
+        self.contract.addRegistrar(self.registrar_child, self.begin_block, sender=self.registrar_parent_k)
         # add and remove a user
         self.contract.addUser(self.user_removed, self.begin_block)
         self.contract.removeUser(self.user_removed)
@@ -50,8 +53,12 @@ class TestUserRegistryContract(unittest.TestCase):
     def test_add_user_known_registrar_active(self):
         self.assertTrue(self.contract.addUser(self.temporary_account, self.begin_block))
 
+    def test_add_user_older_than_parent(self):
+        self.assertFalse(self.contract.addUser(self.temporary_account, self.initial_admin_begin_block-1))
+
     def test_add_user_known_registrar_not_active(self):
-        pass
+        with self.assertRaises(TransactionFailed):
+            self.contract.addUser(self.temporary_account, self.begin_block, sender=self.registrar_removed_k)
 
     def test_add_user_unknown_registrar(self):
         with self.assertRaises(TransactionFailed):
@@ -64,7 +71,8 @@ class TestUserRegistryContract(unittest.TestCase):
         self.assertTrue(self.contract.removeUser(self.user_active))
 
     def test_remove_user_by_owner_not_active(self):
-        pass
+        with self.assertRaises(TransactionFailed):
+            self.contract.removeUser(self.user_active, sender=self.registrar_removed_k)
 
     def test_remove_user_by_someone_else(self):
         with self.assertRaises(TransactionFailed):
@@ -76,32 +84,38 @@ class TestUserRegistryContract(unittest.TestCase):
     def test_remove_user_already_removed(self):
         self.assertTrue(self.contract.removeUser(self.user_removed))
 
+    def test_add_registrar_older_than_parent(self):
+        self.assertFalse(self.contract.addRegistrar(self.temporary_account, self.initial_admin_begin_block - 1))
+
     def test_add_registrar_initial_admin(self):
-        pass
+        self.assertTrue(self.contract.addRegistrar(self.temporary_account, self.begin_block, sender=self.owner))
 
     def test_add_registrar_known_parent_active(self):
-        pass
+        self.assertTrue(self.contract.addRegistrar(self.temporary_account, self.begin_block, sender=self.registrar_child_k))
 
     def test_add_registrar_known_parent_not_active(self):
-        pass
+        with self.assertRaises(TransactionFailed):
+            self.contract.addRegistrar(self.temporary_account, self.begin_block, sender=self.registrar_removed_k)
 
     def test_add_registrar_unknown_parent(self):
-        pass
+        with self.assertRaises(TransactionFailed):
+            self.contract.addRegistrar(self.temporary_account, self.begin_block, sender=self.temporary_account_k)
 
     def test_add_registrar_already_removed(self):
-        pass
+        self.assertFalse(self.contract.addRegistrar(self.registrar_removed, self.begin_block))
 
     def test_remove_initial_admin_registrar(self):
         self.assertFalse(self.contract.removeRegistrar(self.owner_address))
 
     def test_remove_registrar_by_parent(self):
-        pass
+        self.assertTrue(self.contract.removeRegistrar(self.registrar_child, sender=self.registrar_parent_k))
 
     def test_remove_registrar_by_someone_else(self):
-        pass
+        with self.assertRaises(TransactionFailed):
+            self.contract.removeRegistrar(self.registrar_child, sender=self.temporary_account_k)
 
     def test_remove_registrar_already_removed(self):
-        pass
+        self.assertTrue(self.contract.removeRegistrar(self.registrar_removed))
 
     def test_can_transact_unknown_user(self):
         self.assertFalse(self.contract.isAuthorizedToTransact(self.temporary_account, self.begin_block))
@@ -110,7 +124,7 @@ class TestUserRegistryContract(unittest.TestCase):
         self.assertTrue(self.contract.isAuthorizedToTransact(self.user_active, self.begin_block))
 
     def test_can_transact_known_registrar(self):
-        self.assertTrue(self.contract.isAuthorizedToTransact(self.registrar_active, self.begin_block))
+        self.assertTrue(self.contract.isAuthorizedToTransact(self.registrar_parent, self.begin_block))
 
     def test_can_transact_older_block(self):
         self.assertFalse(self.contract.isAuthorizedToTransact(self.user_active, self.begin_block - 1))
