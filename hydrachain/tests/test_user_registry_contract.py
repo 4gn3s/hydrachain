@@ -3,6 +3,7 @@ import os
 
 from ethereum import tester
 from ethereum import utils
+from ethereum.tester import TransactionFailed
 
 
 class TestUserRegistryContract(unittest.TestCase):
@@ -22,48 +23,58 @@ class TestUserRegistryContract(unittest.TestCase):
                                               sender=cls.owner)
         cls.initial_admin_begin_block = 1
         cls.begin_block = 10
+        cls.user_removed = tester.a3
+        cls.user_active = tester.a4
+        cls.registrar_removed = tester.a5
+        cls.registrar_active = tester.a6
+        cls.temporary_account = tester.a7
         cls.snapshot = cls.state.snapshot()
 
 
     def setUp(self):
         self.state.revert(self.snapshot)
-        # fill the contract with some data here
+        # add some test users/registrars
+        self.contract.addUser(self.user_active, self.begin_block)
+        self.contract.addRegistrar(self.registrar_active, self.begin_block)
+        # add and remove a user
+        self.contract.addUser(self.user_removed, self.begin_block)
+        self.contract.removeUser(self.user_removed)
+        # add and remove a registrar
+        self.contract.addRegistrar(self.registrar_removed, self.begin_block)
+        self.contract.removeRegistrar(self.registrar_removed)
 
     def test_initial_admin_set(self):
         self.assertEqual(self.contract.initialAdmin(), utils.encode_hex(self.owner_address))
         self.assertTrue(self.contract.isAuthorizedToTransact(self.owner_address, self.initial_admin_begin_block))
 
     def test_add_user_known_registrar_active(self):
-        self.contract.addUser(tester.a9, self.begin_block)
-        self.assertFalse(self.contract.isAuthorizedToTransact(tester.a9, self.begin_block - 1))
-        self.assertTrue(self.contract.isAuthorizedToTransact(tester.a9, self.begin_block))
-        self.assertTrue(self.contract.isAuthorizedToTransact(tester.a9, self.begin_block + 1))
+        self.assertTrue(self.contract.addUser(self.temporary_account, self.begin_block))
 
     def test_add_user_known_registrar_not_active(self):
-        # with self.assertRaises(TransactionFailed):
-        #     self.contract.addUser(tester.a9, self.begin_block, sender=self.someone_else)
         pass
 
     def test_add_user_unknown_registrar(self):
-        pass
+        with self.assertRaises(TransactionFailed):
+            self.contract.addUser(self.temporary_account, self.begin_block, sender=self.someone_else)
 
     def test_add_user_already_removed(self):
-        pass
+        self.assertFalse(self.contract.addUser(self.user_removed, self.begin_block))
 
     def test_remove_user_by_owner_active(self):
-        pass
+        self.assertTrue(self.contract.removeUser(self.user_active))
 
     def test_remove_user_by_owner_not_active(self):
         pass
 
     def test_remove_user_by_someone_else(self):
-        pass
+        with self.assertRaises(TransactionFailed):
+            self.contract.removeUser(self.user_active, sender=self.someone_else)
 
     def test_remove_user_non_existent(self):
-        pass
+        self.assertFalse(self.contract.removeUser(self.temporary_account))
 
     def test_remove_user_already_removed(self):
-        pass
+        self.assertTrue(self.contract.removeUser(self.user_removed))
 
     def test_add_registrar_initial_admin(self):
         pass
@@ -81,7 +92,7 @@ class TestUserRegistryContract(unittest.TestCase):
         pass
 
     def test_remove_initial_admin_registrar(self):
-        pass
+        self.assertFalse(self.contract.removeRegistrar(self.owner_address))
 
     def test_remove_registrar_by_parent(self):
         pass
@@ -93,19 +104,16 @@ class TestUserRegistryContract(unittest.TestCase):
         pass
 
     def test_can_transact_unknown_user(self):
-        pass
+        self.assertFalse(self.contract.isAuthorizedToTransact(self.temporary_account, self.begin_block))
 
     def test_can_transact_known_user(self):
-        pass
-
-    def test_can_transact_unknown_registrar(self):
-        pass
+        self.assertTrue(self.contract.isAuthorizedToTransact(self.user_active, self.begin_block))
 
     def test_can_transact_known_registrar(self):
-        pass
+        self.assertTrue(self.contract.isAuthorizedToTransact(self.registrar_active, self.begin_block))
 
     def test_can_transact_older_block(self):
-        pass
+        self.assertFalse(self.contract.isAuthorizedToTransact(self.user_active, self.begin_block - 1))
 
     def test_can_transact_newer_block(self):
-        pass
+        self.assertTrue(self.contract.isAuthorizedToTransact(self.user_active, self.begin_block + 1))
