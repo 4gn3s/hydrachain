@@ -8,7 +8,7 @@ from pyethapp.console_service import normalize_address
 class ContractManager:
     def __init__(self, services):
         self.chainservice = services[4]
-        self.accountsservice = services[2]
+        self.accountsservice = services[1]
         self.coinbase = self.accountsservice.coinbase
 
     def transact(self, to, value=0, data='', sender=None, startgas=25000, gasprice=60 * denoms.shannon):

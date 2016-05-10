@@ -24,10 +24,13 @@ from pyethapp.accounts import mk_privkey
 from devp2p.crypto import privtopub as privtopub_raw
 from devp2p.utils import host_port_pubkey_to_uri
 from ethereum.keys import privtoaddr, PBKDF2_CONSTANTS
+from ethereum import processblock
+
 
 # local
 from hydrachain.hdc_service import ChainService
 from hydrachain import __version__
+from processblock_wrapper import ProcessblockWrapper
 
 log = slogging.get_logger('app')
 
@@ -41,6 +44,7 @@ services = [DBService,
             Console]
 
 pyethapp_app.services = services
+ProcessblockWrapper(services)
 
 
 class HPCApp(pyethapp_app.EthApp):
@@ -59,6 +63,7 @@ class HPCApp(pyethapp_app.EthApp):
 
 pyethapp_app.EthApp = HPCApp
 pyethapp_app.app.help = b'Welcome to %s' % HPCApp.client_version_string
+processblock.validate_transaction = ProcessblockWrapper.validate_transaction_wrapper
 
 
 # set morden profile
