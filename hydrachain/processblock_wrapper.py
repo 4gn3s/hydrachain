@@ -17,6 +17,7 @@ class ProcessblockWrapper:
         if not tx.sender:  # sender is set and validated on Transaction initialization
             raise UnsignedTransaction(tx)
 
+        log.info(block.config)
         contract_address = block.config['hdc']["user_registry_contract_address"]
 
         if contract_address:

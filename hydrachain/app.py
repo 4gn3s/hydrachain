@@ -27,7 +27,8 @@ from ethereum.keys import privtoaddr, PBKDF2_CONSTANTS
 from ethereum import processblock
 
 # local
-from hydrachain.contracts.contracts_settings import USER_REGISTRY_CONTRACT_ADDRESS
+from hydrachain.contracts.contract_utils import ContractUtils
+from hydrachain.contracts.contracts_settings import USER_REGISTRY_CONTRACT_NAME, USER_REGISTRY_CONTRACT_FILE, CONTRACT_DEPLOYMENT_GAS
 from hydrachain.hdc_service import ChainService
 from hydrachain import __version__
 from processblock_wrapper import ProcessblockWrapper
@@ -78,8 +79,9 @@ for p in pyethapp_app.app.params:
               type=int, default=0, help='the node_num')
 @click.option('seed', '--seed', '-s', multiple=False,
               type=int, default=42, help='the seed')
+@click.option('--deploy', is_flag=True, help='deploy the contracts for authorization')
 @click.pass_context
-def rundummy(ctx, num_validators, node_num, seed):
+def rundummy(ctx, num_validators, node_num, seed, deploy):
     base_port = 29870
 
     # reduce key derivation iterations
@@ -98,6 +100,14 @@ def rundummy(ctx, num_validators, node_num, seed):
     config['jsonrpc']['listen_port'] += node_num
 
     app = start_app(config, [account])
+
+    if deploy:
+        contract_full_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), USER_REGISTRY_CONTRACT_FILE)
+        contract_address = ContractUtils(app, log).deploy(contract_full_path, USER_REGISTRY_CONTRACT_NAME, CONTRACT_DEPLOYMENT_GAS)
+        log.info("--------------------------------------------------")
+        log.info(contract_address)
+        log.info("--------------------------------------------------")
+
     serve_until_stopped(app)
 
 
@@ -196,9 +206,6 @@ def start_app(config, accounts):
 
     # create app
     app = HPCApp(config)
-
-    ProcessblockWrapper(services)
-    config['hdc']['user_registry_contract_address'] = USER_REGISTRY_CONTRACT_ADDRESS
 
     # development mode
     if False:

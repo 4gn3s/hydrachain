@@ -16,6 +16,8 @@ import gevent.lock
 from collections import deque
 from gevent.queue import Queue
 from pyethapp.eth_service import ChainService as eth_ChainService
+
+from hydrachain.contracts.contracts_settings import USER_REGISTRY_CONTRACT_ADDRESS
 from .consensus.protocol import HDCProtocol, HDCProtocolError
 from .consensus.base import Signed, VotingInstruction, BlockProposal
 from .consensus.base import VoteBlock, VoteNil, HDCBlockHeader, LockSet, Ready
@@ -121,10 +123,13 @@ class ChainService(eth_ChainService):
     """
     # required by BaseService
     name = 'chain'
+    default_block_config = ethereum_config.default_config
+    default_block_config['hdc'] = {}
+    default_block_config['hdc']['user_registry_contract_address'] = USER_REGISTRY_CONTRACT_ADDRESS
     default_config = dict(eth=dict(network_id=0,
                                    genesis='',
                                    pruning=-1,
-                                   block=ethereum_config.default_config),
+                                   block=default_block_config),
                           hdc=dict(validators=[]),
                           )
 
