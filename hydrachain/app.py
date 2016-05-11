@@ -103,7 +103,7 @@ def rundummy(ctx, num_validators, node_num, seed, deploy):
 
     if deploy:
         contract_full_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), USER_REGISTRY_CONTRACT_FILE)
-        contract_address = ContractUtils(app, log).deploy(contract_full_path, USER_REGISTRY_CONTRACT_NAME, CONTRACT_DEPLOYMENT_GAS)
+        contract_address = ContractUtils(app, log).deploy(contract_full_path, USER_REGISTRY_CONTRACT_NAME, CONTRACT_DEPLOYMENT_GAS).to_dict()
         log.info("--------------------------------------------------")
         log.info(contract_address)
         log.info("--------------------------------------------------")

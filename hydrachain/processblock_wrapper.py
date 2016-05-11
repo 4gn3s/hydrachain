@@ -21,8 +21,9 @@ class ProcessblockWrapper:
         contract_address = block.config['hdc']["user_registry_contract_address"]
 
         if contract_address:
+            log.info("validating if transaction sender is authorized")
             contract_utils = ContractUtils(block.config['jsonrpc']['listen_port'])
-            contract_utils.create_contract_abi(contract_address)
+            contract_utils.new_contract(contract_address)
             if not contract_utils.contract.isAuthorizedToTransact(tx.sender, block.number):
                 raise UnauthorizedTransaction(tx)
 
