@@ -26,8 +26,8 @@ from devp2p.utils import host_port_pubkey_to_uri
 from ethereum.keys import privtoaddr, PBKDF2_CONSTANTS
 from ethereum import processblock
 
-
 # local
+from hydrachain.contracts.contracts_settings import USER_REGISTRY_CONTRACT_ADDRESS
 from hydrachain.hdc_service import ChainService
 from hydrachain import __version__
 from processblock_wrapper import ProcessblockWrapper
@@ -44,7 +44,6 @@ services = [DBService,
             Console]
 
 pyethapp_app.services = services
-ProcessblockWrapper(services)
 
 
 class HPCApp(pyethapp_app.EthApp):
@@ -197,6 +196,9 @@ def start_app(config, accounts):
 
     # create app
     app = HPCApp(config)
+
+    ProcessblockWrapper(services)
+    config['hdc']['user_registry_contract_address'] = USER_REGISTRY_CONTRACT_ADDRESS
 
     # development mode
     if False:
