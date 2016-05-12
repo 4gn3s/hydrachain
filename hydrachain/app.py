@@ -14,7 +14,7 @@ from devp2p.discovery import NodeDiscovery
 from devp2p.app import BaseApp
 from pyethapp.console_service import Console
 from pyethapp.db_service import DBService
-from pyethapp.jsonrpc import JSONRPCServer
+from pyethapp.jsonrpc import JSONRPCServer, data_encoder
 from pyethapp.accounts import AccountsService, Account
 import pyethapp.config as konfig
 import ethereum.slogging as slogging
@@ -25,12 +25,16 @@ from devp2p.crypto import privtopub as privtopub_raw
 from devp2p.utils import host_port_pubkey_to_uri
 from ethereum.keys import privtoaddr, PBKDF2_CONSTANTS
 from ethereum import processblock
+from ethereum import utils
 
 # local
-from hydrachain.contracts.contract_utils import ContractUtils
-from hydrachain.contracts.contracts_settings import USER_REGISTRY_CONTRACT_NAME, USER_REGISTRY_CONTRACT_FILE, CONTRACT_DEPLOYMENT_GAS
+# from hydrachain.contracts.contract_utils import ContractUtils
+# from hydrachain.contracts.contracts_settings import USER_REGISTRY_CONTRACT_NAME, USER_REGISTRY_CONTRACT_FILE, CONTRACT_DEPLOYMENT_GAS
+from examples.native.fungible.fungible_contract import Fungible
+from hydrachain.contracts.user_registry_contract import UserRegistryContract
 from hydrachain.hdc_service import ChainService
 from hydrachain import __version__
+from hydrachain.nc_utils import create_contract_instance
 from processblock_wrapper import ProcessblockWrapper
 
 log = slogging.get_logger('app')
@@ -79,9 +83,18 @@ for p in pyethapp_app.app.params:
               type=int, default=0, help='the node_num')
 @click.option('seed', '--seed', '-s', multiple=False,
               type=int, default=42, help='the seed')
-@click.option('--deploy', is_flag=True, help='deploy the contracts for authorization')
+@click.option('-l', '--log_config', multiple=False, type=str, default="eth:debug",
+              help='log_config string: e.g. ":info,eth:debug', show_default=True)
+@click.option('--log-json/--log-no-json', default=False,
+              help='log as structured json output')
+@click.option('--log-file', type=click.Path(dir_okay=False, writable=True, resolve_path=True),
+              help="Log to file instead of stderr.")
+@click.option('config_values', '-c', multiple=True, type=str,
+              help='Single configuration parameters (<param>=<value>)')
+@click.option('--tx-registry', is_flag=True, help='deploy the contract for tx authorization')
 @click.pass_context
-def rundummy(ctx, num_validators, node_num, seed, deploy):
+def rundummy(ctx, num_validators, node_num, seed, log_config, log_json, log_file, tx_registry, config_values):
+    slogging.configure(log_config, log_json=log_json, log_file=log_file)
     base_port = 29870
 
     # reduce key derivation iterations
@@ -99,13 +112,26 @@ def rundummy(ctx, num_validators, node_num, seed, deploy):
     config['p2p']['min_peers'] = 2
     config['jsonrpc']['listen_port'] += node_num
 
+    for config_value in config_values:
+        try:
+            print(config)
+            konfig.set_config_param(config, config_value)
+            print("CHANGING CONFIG {}".format(config_value))
+            print(config)
+        except ValueError:
+            raise BadParameter('Config parameter must be of the form "a.b.c=d" where "a.b.c" '
+                               'specifies the parameter to set and d is a valid yaml value '
+                               '(example: "-c jsonrpc.port=5000")')
+
     app = start_app(config, [account])
 
-    if deploy:
-        contract_full_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), USER_REGISTRY_CONTRACT_FILE)
-        contract_address = ContractUtils(app, log).deploy(contract_full_path, USER_REGISTRY_CONTRACT_NAME, CONTRACT_DEPLOYMENT_GAS).to_dict()
+    if tx_registry:
+        tx_reg_address = create_contract_instance(app, app.services.accounts.coinbase, Fungible)
+        log.info("coinbase {}".format(utils.encode_hex(app.services.accounts.coinbase)))
+        # contract_full_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), USER_REGISTRY_CONTRACT_FILE)
+        # contract_address = data_encoder(ContractUtils(app, log).deploy(contract_full_path, USER_REGISTRY_CONTRACT_NAME, CONTRACT_DEPLOYMENT_GAS).hash)
         log.info("--------------------------------------------------")
-        log.info(contract_address)
+        log.info(utils.encode_hex(tx_reg_address))
         log.info("--------------------------------------------------")
 
     serve_until_stopped(app)
