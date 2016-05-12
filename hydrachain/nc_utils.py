@@ -70,10 +70,13 @@ def wait_next_block_factory(app, timeout=None):
 
 
 def create_contract_instance(app, sender, contract_template):
-    log.DEV("creating instance", klass=contract_template)
+    log.DEV("creating instance {}".format(contract_template))
     to_ = nc.CreateNativeContractInstance.address
+    log.DEV("to {}".format(str(to_)))
     call_data = contract_template.address[-4:]
+    log.DEV("call data {}".format(str(call_data)))
     tx = transact(app, sender, to_, data=call_data)
+    log.DEV(tx)
     instance_address = nc.registry.mk_instance_address(contract_template, sender, tx.nonce)
     return instance_address
 

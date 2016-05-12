@@ -31,6 +31,7 @@ from ethereum import utils
 # from hydrachain.contracts.contract_utils import ContractUtils
 # from hydrachain.contracts.contracts_settings import USER_REGISTRY_CONTRACT_NAME, USER_REGISTRY_CONTRACT_FILE, CONTRACT_DEPLOYMENT_GAS
 from examples.native.fungible.fungible_contract import Fungible
+from hydrachain.contracts.test_contract import TestContract
 from hydrachain.contracts.user_registry_contract import UserRegistryContract
 from hydrachain.hdc_service import ChainService
 from hydrachain import __version__
@@ -114,10 +115,7 @@ def rundummy(ctx, num_validators, node_num, seed, log_config, log_json, log_file
 
     for config_value in config_values:
         try:
-            print(config)
             konfig.set_config_param(config, config_value)
-            print("CHANGING CONFIG {}".format(config_value))
-            print(config)
         except ValueError:
             raise BadParameter('Config parameter must be of the form "a.b.c=d" where "a.b.c" '
                                'specifies the parameter to set and d is a valid yaml value '
@@ -126,7 +124,7 @@ def rundummy(ctx, num_validators, node_num, seed, log_config, log_json, log_file
     app = start_app(config, [account])
 
     if tx_registry:
-        tx_reg_address = create_contract_instance(app, app.services.accounts.coinbase, Fungible)
+        tx_reg_address = create_contract_instance(app, app.services.accounts.coinbase, TestContract)
         log.info("coinbase {}".format(utils.encode_hex(app.services.accounts.coinbase)))
         # contract_full_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), USER_REGISTRY_CONTRACT_FILE)
         # contract_address = data_encoder(ContractUtils(app, log).deploy(contract_full_path, USER_REGISTRY_CONTRACT_NAME, CONTRACT_DEPLOYMENT_GAS).hash)
