@@ -1,38 +1,34 @@
-import signal
-import sys
-import click
-import gevent
 import copy
 import os
+import signal
+import sys
 
+import click
+import ethereum.slogging as slogging
+import gevent
+import pyethapp.app as pyethapp_app
+import pyethapp.config as konfig
 from click.exceptions import BadParameter
 from click.types import IntRange
-from gevent.event import Event
-from devp2p.service import BaseService
-from devp2p.peermanager import PeerManager
-from devp2p.discovery import NodeDiscovery
 from devp2p.app import BaseApp
-from pyethapp.console_service import Console
-from pyethapp.db_service import DBService
-from pyethapp.jsonrpc import JSONRPCServer, data_encoder
-from pyethapp.accounts import AccountsService, Account
-import pyethapp.config as konfig
-import ethereum.slogging as slogging
-from ethereum.utils import denoms
-import pyethapp.app as pyethapp_app
-from pyethapp.accounts import mk_privkey
 from devp2p.crypto import privtopub as privtopub_raw
+from devp2p.discovery import NodeDiscovery
+from devp2p.peermanager import PeerManager
+from devp2p.service import BaseService
 from devp2p.utils import host_port_pubkey_to_uri
-from ethereum.keys import privtoaddr, PBKDF2_CONSTANTS
 from ethereum import processblock
 from ethereum import utils
+from ethereum.keys import privtoaddr, PBKDF2_CONSTANTS
+from ethereum.utils import denoms
+from gevent.event import Event
+from pyethapp.accounts import AccountsService, Account
+from pyethapp.accounts import mk_privkey
+from pyethapp.console_service import Console
+from pyethapp.db_service import DBService
+from pyethapp.jsonrpc import JSONRPCServer
 
 # local
-# from hydrachain.contracts.contract_utils import ContractUtils
-# from hydrachain.contracts.contracts_settings import USER_REGISTRY_CONTRACT_NAME, USER_REGISTRY_CONTRACT_FILE, CONTRACT_DEPLOYMENT_GAS
-from examples.native.fungible.fungible_contract import Fungible
 from hydrachain.contracts.test_contract import TestContract
-from hydrachain.contracts.user_registry_contract import UserRegistryContract
 from hydrachain.hdc_service import ChainService
 from hydrachain import __version__
 from hydrachain.nc_utils import create_contract_instance
@@ -69,6 +65,8 @@ class HPCApp(pyethapp_app.EthApp):
 pyethapp_app.EthApp = HPCApp
 pyethapp_app.app.help = b'Welcome to %s' % HPCApp.client_version_string
 processblock.validate_transaction = ProcessblockWrapper.validate_transaction_wrapper
+processblock.apply_transaction = ProcessblockWrapper.apply_transaction
+processblock._apply_msg = ProcessblockWrapper._apply_msg
 
 
 # set morden profile
@@ -121,16 +119,10 @@ def rundummy(ctx, num_validators, node_num, seed, log_config, log_json, log_file
                                'specifies the parameter to set and d is a valid yaml value '
                                '(example: "-c jsonrpc.port=5000")')
 
-    app = start_app(config, [account])
-
     if tx_registry:
-        tx_reg_address = create_contract_instance(app, app.services.accounts.coinbase, TestContract)
-        log.info("coinbase {}".format(utils.encode_hex(app.services.accounts.coinbase)))
-        # contract_full_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), USER_REGISTRY_CONTRACT_FILE)
-        # contract_address = data_encoder(ContractUtils(app, log).deploy(contract_full_path, USER_REGISTRY_CONTRACT_NAME, CONTRACT_DEPLOYMENT_GAS).hash)
-        log.info("--------------------------------------------------")
-        log.info(utils.encode_hex(tx_reg_address))
-        log.info("--------------------------------------------------")
+        config['post_app_start_callbacks'].append(tx_register_callback)
+
+    app = start_app(config, [account])
 
     serve_until_stopped(app)
 
@@ -140,8 +132,18 @@ def rundummy(ctx, num_validators, node_num, seed, log_config, log_json, log_file
               type=int, default=3, help='number of validators')
 @click.option('seed', '--seed', '-s', multiple=False,
               type=int, default=42, help='the seed')
+@click.option('-l', '--log_config', multiple=False, type=str, default="eth:debug",
+              help='log_config string: e.g. ":info,eth:debug', show_default=True)
+@click.option('--log-json/--log-no-json', default=False,
+              help='log as structured json output')
+@click.option('--log-file', type=click.Path(dir_okay=False, writable=True, resolve_path=True),
+              help="Log to file instead of stderr.")
+@click.option('config_values', '-c', multiple=True, type=str,
+              help='Single configuration parameters (<param>=<value>)')
+@click.option('--tx-registry', is_flag=True, help='deploy the contract for tx authorization')
 @click.pass_context
-def runmultiple(ctx, num_validators, seed):
+def runmultiple(ctx, num_validators, seed, log_config, log_json, log_file, tx_registry, config_values):
+    slogging.configure(log_config, log_json=log_json, log_file=log_file)
     gevent.get_hub().SYSTEM_ERROR = BaseException
     base_port = 29870
 
@@ -151,10 +153,23 @@ def runmultiple(ctx, num_validators, seed):
     config = ctx.obj['config']
     config['discovery']['bootstrap_nodes'] = [get_bootstrap_node(seed, base_port)]
 
+    for config_value in config_values:
+        try:
+            konfig.set_config_param(config, config_value)
+        except ValueError:
+            raise BadParameter('Config parameter must be of the form "a.b.c=d" where "a.b.c" '
+                               'specifies the parameter to set and d is a valid yaml value '
+                               '(example: "-c jsonrpc.port=5000")')
+
+    if tx_registry:
+        config['post_app_start_callbacks'].append(tx_register_callback)
+
     apps = []
     for node_num in range(num_validators):
         n_config = copy.deepcopy(config)
         n_config, account = _configure_node_network(n_config, num_validators, node_num, seed)
+        # if tx_registry:
+        #     n_config['test_privkeys'].append(account.privkey)
         # set ports based on node
         n_config['discovery']['listen_port'] = base_port + node_num
         n_config['p2p']['listen_port'] = base_port + node_num
@@ -170,6 +185,10 @@ def runmultiple(ctx, num_validators, seed):
         # activate ipython console for the first validator
         if node_num != 0:
             n_config['deactivated_services'].append(Console.name)
+
+        n_config['eth']['block']['GENESIS_INITIAL_ALLOC'][account.address.encode('hex')] = {
+            'balance': 1024 * denoms.ether}
+        del n_config['eth']['genesis_hash']
         # n_config['deactivated_services'].append(ChainService.name)
         app = start_app(n_config, [account])
         apps.append(app)
@@ -240,11 +259,10 @@ def start_app(config, accounts):
         genesis_config = dict(alloc=dict())
         for privkey in config['test_privkeys']:
             assert len(privkey) == 32
-            address = privtoaddr(privkey)
             account = Account.new(password='', key=privkey)
             accounts.append(account)
             # add to genesis alloc
-            genesis_config['alloc'][address] = {'wei': config['test_privkeys_endowment']}
+            genesis_config['alloc'][account.address] = {'balance': config['test_privkeys_endowment']}
 
         if config['test_privkeys'] and config['eth'].get('genesis_hash'):
             del config['eth']['genesis_hash']
@@ -279,6 +297,28 @@ def start_app(config, accounts):
         cb(app)
     return app
 
+
+def tx_register_callback(app):
+    log.info("------------ TX REG CALLBACK --------------")
+    # called after each app start
+    # only the app which has a certain coinbase is allowed to create the contract
+    # if chain is newly started
+    if app.services.accounts.coinbase == app.config['hdc']['validators'][0]:
+        if app.services.chain.chain.head.number == 0:
+            # upload the contract
+            log.info("coinbase {}".format(utils.encode_hex(app.services.accounts.coinbase)))
+            log.info("coinbase balance {}".format(app.services.chain.chain.head.get_balance(app.services.accounts.coinbase)))
+            log.info("{}".format(app.services.chain.chain.head.is_genesis()))
+            log.info("{}".format(app.services.chain.config))
+            for acc in app.services.accounts:
+                log.info("{}: {}".format(utils.encode_hex(acc.address), app.services.chain.chain.head.get_balance(acc.address)))
+            tx_reg_address = create_contract_instance(app, app.services.accounts.coinbase, TestContract)
+            log.info("coinbase {}".format(utils.encode_hex(app.services.accounts.coinbase)))
+            # contract_full_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), USER_REGISTRY_CONTRACT_FILE)
+            # contract_address = data_encoder(ContractUtils(app, log).deploy(contract_full_path, USER_REGISTRY_CONTRACT_NAME, CONTRACT_DEPLOYMENT_GAS).hash)
+            log.info("--------------------------------------------------")
+            log.info(utils.encode_hex(tx_reg_address))
+            log.info("--------------------------------------------------")
 
 def serve_until_stopped(*apps):
     # wait for interrupt
