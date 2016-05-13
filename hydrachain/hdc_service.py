@@ -123,13 +123,10 @@ class ChainService(eth_ChainService):
     """
     # required by BaseService
     name = 'chain'
-    default_block_config = ethereum_config.default_config
-    default_block_config['hdc'] = {}
-    default_block_config['hdc']['user_registry_contract_address'] = USER_REGISTRY_CONTRACT_ADDRESS
     default_config = dict(eth=dict(network_id=0,
                                    genesis='',
                                    pruning=-1,
-                                   block=default_block_config),
+                                   block=ethereum_config.default_config),
                           hdc=dict(validators=[]),
                           )
 

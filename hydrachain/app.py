@@ -162,6 +162,7 @@ def runmultiple(ctx, num_validators, seed, log_config, log_json, log_file, tx_re
 
     if tx_registry:
         config['post_app_start_callbacks'].append(tx_register_callback)
+        config['hdc']['user_registry_contract_address'] = ''
         for node_num in range(num_validators):
             config['test_privkeys'].append(mk_privkey('%d:account:%d' % (seed, node_num)))
 
@@ -191,6 +192,9 @@ def runmultiple(ctx, num_validators, seed, log_config, log_json, log_file, tx_re
 
         # n_config['deactivated_services'].append(ChainService.name)
         app = start_app(n_config, [account])
+        if 'user_registry_contract_address' in n_config['hdc'] and n_config['hdc']['user_registry_contract_address'] != '':
+            config['hdc']['user_registry_contract_address'] = n_config['hdc']['user_registry_contract_address']
+        
         apps.append(app)
         # hack to enable access to all apps in the console
         app.apps = apps
@@ -295,12 +299,11 @@ def start_app(config, accounts):
     log.info('starting')
     app.start()
     for cb in config['post_app_start_callbacks']:
-        cb(app)
+        cb(app, config)
     return app
 
 
-def tx_register_callback(app):
-    log.info("------------ TX REG CALLBACK --------------")
+def tx_register_callback(app, config):
     # called after each app start
     # only the app which has a certain coinbase is allowed to create the contract
     # if chain is newly started
@@ -311,9 +314,8 @@ def tx_register_callback(app):
             tx_reg_address = create_contract_instance(app, app.services.accounts.coinbase, TestContract)
             # contract_full_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), USER_REGISTRY_CONTRACT_FILE)
             # contract_address = data_encoder(ContractUtils(app, log).deploy(contract_full_path, USER_REGISTRY_CONTRACT_NAME, CONTRACT_DEPLOYMENT_GAS).hash)
-            log.info("--------------------------------------------------")
-            log.info(utils.encode_hex(tx_reg_address))
-            log.info("--------------------------------------------------")
+            config['hdc']['user_registry_contract_address'] = utils.encode_hex(tx_reg_address)
+
 
 def serve_until_stopped(*apps):
     # wait for interrupt

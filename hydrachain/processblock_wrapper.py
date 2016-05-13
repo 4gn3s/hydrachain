@@ -19,8 +19,11 @@ class ProcessblockWrapper:
         if not tx.sender:  # sender is set and validated on Transaction initialization
             raise UnsignedTransaction(tx)
 
+        contract_address = None
         # log.info(block.config)
-        contract_address = block.config['hdc']["user_registry_contract_address"]
+        if 'hdc' in block.config:
+            if 'user_registry_contract_address' in block.config['hdc']:
+                contract_address = block.config['hdc']["user_registry_contract_address"]
 
         if contract_address:
             print("validating tx AUTH AUTH ATUH")
