@@ -167,8 +167,6 @@ def runmultiple(ctx, num_validators, seed, log_config, log_json, log_file, tx_re
     for node_num in range(num_validators):
         n_config = copy.deepcopy(config)
         n_config, account = _configure_node_network(n_config, num_validators, node_num, seed)
-        # if tx_registry:
-        #     n_config['test_privkeys'].append(account.privkey)
         # set ports based on node
         n_config['discovery']['listen_port'] = base_port + node_num
         n_config['p2p']['listen_port'] = base_port + node_num
@@ -258,10 +256,11 @@ def start_app(config, accounts):
         genesis_config = dict(alloc=dict())
         for privkey in config['test_privkeys']:
             assert len(privkey) == 32
+            address = privtoaddr(privkey)
             account = Account.new(password='', key=privkey)
             accounts.append(account)
             # add to genesis alloc
-            genesis_config['alloc'][account.address] = {'balance': config['test_privkeys_endowment']}
+            genesis_config['alloc'][address] = {'wei': config['test_privkeys_endowment']}
 
         if config['test_privkeys'] and config['eth'].get('genesis_hash'):
             del config['eth']['genesis_hash']
