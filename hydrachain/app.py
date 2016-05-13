@@ -162,6 +162,8 @@ def runmultiple(ctx, num_validators, seed, log_config, log_json, log_file, tx_re
 
     if tx_registry:
         config['post_app_start_callbacks'].append(tx_register_callback)
+        for node_num in range(num_validators):
+            config['test_privkeys'].append(mk_privkey('%d:account:%d' % (seed, node_num)))
 
     apps = []
     for node_num in range(num_validators):
@@ -183,9 +185,10 @@ def runmultiple(ctx, num_validators, seed, log_config, log_json, log_file, tx_re
         if node_num != 0:
             n_config['deactivated_services'].append(Console.name)
 
-        n_config['eth']['block']['GENESIS_INITIAL_ALLOC'][account.address.encode('hex')] = {
-            'balance': 1024 * denoms.ether}
-        del n_config['eth']['genesis_hash']
+        # n_config['eth']['block']['GENESIS_INITIAL_ALLOC'][account.address.encode('hex')] = {
+        #     'balance': 1024 * denoms.ether}
+        # del n_config['eth']['genesis_hash']
+
         # n_config['deactivated_services'].append(ChainService.name)
         app = start_app(n_config, [account])
         apps.append(app)
