@@ -74,17 +74,17 @@ class UserRegistryContract(nc.NativeContract):
                     return 1
         return 0
 
-    @nc.constant
-    def is_authorized(ctx, _sender_address, _current_block, returns='uint16'):
-        # When a transaction is added to the block, it is checked if the
-        # sender_address is in users/registrars and current block_height must be >= begin_block
-        if ctx.users[_sender_address] != 0 and ctx.users[_sender_address].begin_block != -1:
-                if ctx.users[_sender_address].begin_block <= _current_block:
-                    return 1
-        if ctx.registrars[_sender_address] != 0 and ctx.registrars[_sender_address].begin_block != -1:
-                if ctx.registrars[_sender_address].begin_block <= _current_block:
-                    return 1
-        return 0
+    # @nc.constant
+    # def is_authorized(ctx, _sender_address, _current_block, returns='uint16'):
+    #     # When a transaction is added to the block, it is checked if the
+    #     # sender_address is in users/registrars and current block_height must be >= begin_block
+    #     if ctx.users[_sender_address] != 0 and ctx.users[_sender_address].begin_block != -1:
+    #             if ctx.users[_sender_address].begin_block <= _current_block:
+    #                 return 1
+    #     if ctx.registrars[_sender_address] != 0 and ctx.registrars[_sender_address].begin_block != -1:
+    #             if ctx.registrars[_sender_address].begin_block <= _current_block:
+    #                 return 1
+    #     return 0
 
     @nc.constant
     def get_users_parent(ctx, _user_address):

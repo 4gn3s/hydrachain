@@ -29,6 +29,7 @@ from pyethapp.jsonrpc import JSONRPCServer
 
 # local
 from hydrachain.contracts.test_contract import TestContract
+from hydrachain.contracts.user_registry_contract import UserRegistryContract
 from hydrachain.hdc_service import ChainService
 from hydrachain import __version__
 from hydrachain.nc_utils import create_contract_instance
@@ -186,15 +187,11 @@ def runmultiple(ctx, num_validators, seed, log_config, log_json, log_file, tx_re
         if node_num != 0:
             n_config['deactivated_services'].append(Console.name)
 
-        # n_config['eth']['block']['GENESIS_INITIAL_ALLOC'][account.address.encode('hex')] = {
-        #     'balance': 1024 * denoms.ether}
-        # del n_config['eth']['genesis_hash']
-
         # n_config['deactivated_services'].append(ChainService.name)
         app = start_app(n_config, [account])
         if 'user_registry_contract_address' in n_config['hdc'] and n_config['hdc']['user_registry_contract_address'] != '':
             config['hdc']['user_registry_contract_address'] = n_config['hdc']['user_registry_contract_address']
-        
+
         apps.append(app)
         # hack to enable access to all apps in the console
         app.apps = apps
@@ -310,8 +307,8 @@ def tx_register_callback(app, config):
     if app.services.accounts.coinbase == app.config['hdc']['validators'][0]:
         if app.services.chain.chain.head.number == 0:
             # upload the contract
-            nc.registry.register(TestContract)
-            tx_reg_address = create_contract_instance(app, app.services.accounts.coinbase, TestContract)
+            nc.registry.register(UserRegistryContract)
+            tx_reg_address = create_contract_instance(app, app.services.accounts.coinbase, UserRegistryContract)
             # contract_full_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), USER_REGISTRY_CONTRACT_FILE)
             # contract_address = data_encoder(ContractUtils(app, log).deploy(contract_full_path, USER_REGISTRY_CONTRACT_NAME, CONTRACT_DEPLOYMENT_GAS).hash)
             config['hdc']['user_registry_contract_address'] = utils.encode_hex(tx_reg_address)
