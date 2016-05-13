@@ -32,6 +32,7 @@ from hydrachain.contracts.test_contract import TestContract
 from hydrachain.hdc_service import ChainService
 from hydrachain import __version__
 from hydrachain.nc_utils import create_contract_instance
+from hydrachain import native_contracts as nc
 from processblock_wrapper import ProcessblockWrapper
 
 log = slogging.get_logger('app')
@@ -65,8 +66,6 @@ class HPCApp(pyethapp_app.EthApp):
 pyethapp_app.EthApp = HPCApp
 pyethapp_app.app.help = b'Welcome to %s' % HPCApp.client_version_string
 processblock.validate_transaction = ProcessblockWrapper.validate_transaction_wrapper
-processblock.apply_transaction = ProcessblockWrapper.apply_transaction
-processblock._apply_msg = ProcessblockWrapper._apply_msg
 
 
 # set morden profile
@@ -306,14 +305,8 @@ def tx_register_callback(app):
     if app.services.accounts.coinbase == app.config['hdc']['validators'][0]:
         if app.services.chain.chain.head.number == 0:
             # upload the contract
-            log.info("coinbase {}".format(utils.encode_hex(app.services.accounts.coinbase)))
-            log.info("coinbase balance {}".format(app.services.chain.chain.head.get_balance(app.services.accounts.coinbase)))
-            log.info("{}".format(app.services.chain.chain.head.is_genesis()))
-            log.info("{}".format(app.services.chain.config))
-            for acc in app.services.accounts:
-                log.info("{}: {}".format(utils.encode_hex(acc.address), app.services.chain.chain.head.get_balance(acc.address)))
+            nc.registry.register(TestContract)
             tx_reg_address = create_contract_instance(app, app.services.accounts.coinbase, TestContract)
-            log.info("coinbase {}".format(utils.encode_hex(app.services.accounts.coinbase)))
             # contract_full_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), USER_REGISTRY_CONTRACT_FILE)
             # contract_address = data_encoder(ContractUtils(app, log).deploy(contract_full_path, USER_REGISTRY_CONTRACT_NAME, CONTRACT_DEPLOYMENT_GAS).hash)
             log.info("--------------------------------------------------")
