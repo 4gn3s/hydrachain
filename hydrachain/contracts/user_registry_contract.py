@@ -16,15 +16,11 @@ class UserRegistryContract(nc.NativeContract):
     registrars_begin_block=nc.IterableDict('int256')
 
     def init(ctx, _origin_account='address', returns=STATUS):
-        log.info('UserRegistryContract init')
         if isaddress(ctx.owner):
             return FORBIDDEN
         ctx.owner = ctx.tx_origin
         ctx.registrars_super_registrar[ctx.tx_origin] = _origin_account
         ctx.registrars_begin_block[ctx.tx_origin] = 1
-        log.info("constr")
-        log.info(utils.encode_hex(ctx.tx_origin))
-        log.info(ctx.registrars_begin_block[ctx.tx_origin])
         return OK
 
     def add_user(ctx, _user_address='address', _begin_block='int256', returns=STATUS):
@@ -41,13 +37,6 @@ class UserRegistryContract(nc.NativeContract):
 
     def add_registrar(ctx, _registrar_address='address', _begin_block='int256', returns=STATUS):
         # if we know the registrar if it is in the register and it has not been removed
-        log.info("add reg")
-        for x in list(ctx.registrars_begin_block.keys()):
-            log.info(utils.encode_hex(x))
-            log.info(ctx.registrars_begin_block[x])
-            log.info('.')
-        log.info(utils.encode_hex(ctx.msg_sender))
-        log.info(ctx.registrars_begin_block[ctx.msg_sender])
         if ctx.registrars_begin_block[ctx.msg_sender] != 0 and ctx.registrars_begin_block[ctx.msg_sender] != -1:
             # first check if the address has not been removed already
             if ctx.registrars_begin_block[_registrar_address] != -1:
@@ -68,8 +57,6 @@ class UserRegistryContract(nc.NativeContract):
         return ERROR
 
     def remove_registrar(ctx, _registrar_address='address', returns=STATUS):
-        log.info("remove reg")
-        log.info(ctx.registrars_begin_block[ctx.msg_sender])
         # if we know the registrar if it is in the register and it has not been removed
         if ctx.registrars_begin_block[ctx.msg_sender] != 0 and ctx.registrars_begin_block[ctx.msg_sender] != -1:
             # if the user owns the entry
