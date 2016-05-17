@@ -28,13 +28,13 @@ from pyethapp.db_service import DBService
 from pyethapp.jsonrpc import JSONRPCServer
 
 # local
-from hydrachain.contracts.test_contract import TestContract
+from hydrachain.config_manager import ConfigManager
 from hydrachain.contracts.user_registry_contract import UserRegistryContract
 from hydrachain.hdc_service import ChainService
 from hydrachain import __version__
 from hydrachain.nc_utils import create_contract_instance
 from hydrachain import native_contracts as nc
-from processblock_wrapper import ProcessblockWrapper
+import processblock_wrapper
 
 log = slogging.get_logger('app')
 
@@ -66,7 +66,7 @@ class HPCApp(pyethapp_app.EthApp):
 
 pyethapp_app.EthApp = HPCApp
 pyethapp_app.app.help = b'Welcome to %s' % HPCApp.client_version_string
-processblock.validate_transaction = ProcessblockWrapper.validate_transaction_wrapper
+processblock.validate_transaction = processblock_wrapper.validate_transaction_wrapper(processblock.validate_transaction)
 
 
 # set morden profile
@@ -301,6 +301,7 @@ def start_app(config, accounts):
 
 
 def tx_register_callback(app, config):
+    cm = ConfigManager()
     # called after each app start
     # only the app which has a certain coinbase is allowed to create the contract
     # if chain is newly started
@@ -309,9 +310,8 @@ def tx_register_callback(app, config):
             # upload the contract
             nc.registry.register(UserRegistryContract)
             tx_reg_address = create_contract_instance(app, app.services.accounts.coinbase, UserRegistryContract)
-            # contract_full_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), USER_REGISTRY_CONTRACT_FILE)
-            # contract_address = data_encoder(ContractUtils(app, log).deploy(contract_full_path, USER_REGISTRY_CONTRACT_NAME, CONTRACT_DEPLOYMENT_GAS).hash)
             config['hdc']['user_registry_contract_address'] = utils.encode_hex(tx_reg_address)
+            cm.add('user_registry_contract_address', config['hdc']['user_registry_contract_address'])
 
 
 def serve_until_stopped(*apps):

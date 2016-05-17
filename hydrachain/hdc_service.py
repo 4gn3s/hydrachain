@@ -1,5 +1,6 @@
 import time
 from ethereum.config import Env
+from ethereum.exceptions import InvalidTransaction
 from ethereum.utils import sha3
 import rlp
 from rlp.utils import encode_hex
@@ -17,6 +18,7 @@ from collections import deque
 from gevent.queue import Queue
 from pyethapp.eth_service import ChainService as eth_ChainService
 
+from hydrachain.config_manager import ConfigManager
 from hydrachain.contracts.contracts_settings import USER_REGISTRY_CONTRACT_ADDRESS
 from .consensus.protocol import HDCProtocol, HDCProtocolError
 from .consensus.base import Signed, VotingInstruction, BlockProposal
@@ -123,10 +125,12 @@ class ChainService(eth_ChainService):
     """
     # required by BaseService
     name = 'chain'
+    default_hdc_config = ethereum_config.default_config
+    default_hdc_config['hdc'] = {'user_registry_contract_address': ''}
     default_config = dict(eth=dict(network_id=0,
                                    genesis='',
                                    pruning=-1,
-                                   block=ethereum_config.default_config),
+                                   block=default_hdc_config),
                           hdc=dict(validators=[]),
                           )
 
@@ -194,6 +198,12 @@ class ChainService(eth_ChainService):
         self.on_new_head_cbs = []
         self.on_new_head_candidate_cbs = []
         self.newblock_processing_times = deque(maxlen=1000)
+
+        try:
+            value = ConfigManager().read_value('user_registry_contract_address')
+            self.chain.env.config['hdc'] = {'user_registry_contract_address': value}
+        except KeyError:
+            pass
 
         # Consensus
         validators = validators_from_config(self.config['hdc']['validators'])
@@ -298,7 +308,7 @@ class ChainService(eth_ChainService):
             log.debug('deserialized', elapsed='%.4fs' % elapsed, ts=time.time(),
                       gas_used=block.gas_used, gpsec=self.gpsec(block.gas_used, elapsed))
             assert block.header.check_pow()
-        except processblock.InvalidTransaction as e:
+        except InvalidTransaction as e:
             log.warn('invalid transaction', block=t_block, error=e, FIXME='ban node')
             return
         except VerificationFailed as e:

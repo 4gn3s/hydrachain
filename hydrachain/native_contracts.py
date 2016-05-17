@@ -77,7 +77,7 @@ class Registry(object):
         return address.startswith(self.native_contract_instance_address_prefix)
 
     def address_to_native_contract_class(self, address):
-        "returns class._on_msg_unsafe, use x.im_self to get class"
+        "returns class._on_msg_, use x.im_self to get class"
         assert isinstance(address, bytes) and len(address) == 20
         assert self.is_instance_address(address)
         nca = self.native_contract_address_prefix + address[-4:]
