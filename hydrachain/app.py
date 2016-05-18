@@ -32,6 +32,7 @@ from hydrachain.config_manager import ConfigManager
 from hydrachain.contracts.user_registry_contract import UserRegistryContract
 from hydrachain.hdc_service import ChainService
 from hydrachain import __version__
+from hydrachain.native_contracts import chain_nac_proxy
 from hydrachain.nc_utils import create_contract_instance
 from hydrachain import native_contracts as nc
 import processblock_wrapper
@@ -312,6 +313,8 @@ def tx_register_callback(app, config):
             tx_reg_address = create_contract_instance(app, app.services.accounts.coinbase, UserRegistryContract)
             config['hdc']['user_registry_contract_address'] = utils.encode_hex(tx_reg_address)
             cm.add('user_registry_contract_address', config['hdc']['user_registry_contract_address'])
+            proxy = chain_nac_proxy(app.services.chain.chain, app.services.accounts.coinbase, tx_reg_address)
+            proxy.init(app.services.accounts.coinbase)
 
 
 def serve_until_stopped(*apps):
