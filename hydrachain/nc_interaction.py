@@ -5,6 +5,20 @@ from hydrachain.nc_utils import create_contract_instance, OK, wait_next_block_fa
 import hydrachain.native_contracts as nc
 
 
+# USAGE:
+# 1. if there is a datadir, remove it:
+# rm -r datadir
+#
+# 2. run hydrachain:
+# hydrachain -d datadir runmultiple --num_validators=2 --seed=42
+#
+# 3. after 10 blocks, click Ctrl + C followed by Enter, to enter the console and do:
+# eth.chain.head.get_balance(eth.coinbase) # to make sure there are funds
+# from hydrachain.nc_interaction import *
+# try_interact(eth, eth.coinbase)
+# lastlog(1000) # to read the logs
+
+
 def try_interact(app, coinbase):
     nc.registry.register(Fungible)
     tx_reg_address = create_contract_instance(app, coinbase, Fungible)
