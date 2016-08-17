@@ -1,5 +1,7 @@
 import ethereum.utils as utils
 import ethereum.slogging as slogging
+from rlp.utils import encode_hex
+
 import hydrachain.native_contracts as nc
 from hydrachain.nc_utils import isaddress, STATUS, FORBIDDEN, OK, INSUFFICIENTFUNDS
 log = slogging.get_logger('contracts.fungible')
@@ -44,6 +46,8 @@ class Fungible(nc.NativeContract):
         ctx.owner = ctx.tx_origin
         ctx.accounts[ctx.tx_origin] = _supply
         ctx.supply = _supply
+        ctx.totalSupply()
+        ctx.balanceOf(ctx.tx_origin)
         return OK
 
     def transfer(ctx, _to='address', _value='uint256', returns=STATUS):
@@ -78,6 +82,7 @@ class Fungible(nc.NativeContract):
         """ Standardized Contract API:
         function totalSupply() constant returns (uint256 supply)
         """
+        log.DEV("total supply: {} in block {}".format(ctx.supply, ctx.block_number))
         return ctx.supply
 
     @nc.constant
@@ -85,6 +90,7 @@ class Fungible(nc.NativeContract):
         """ Standardized Contract API:
         function balanceOf(address _address) constant returns (uint256 balance)
         """
+        log.DEV("balance of {} is {}".format(encode_hex(_address), ctx.accounts[_address]))
         return ctx.accounts[_address]
 
     def approve(ctx, _spender='address', _value='uint256', returns=STATUS):

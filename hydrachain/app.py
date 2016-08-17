@@ -24,7 +24,6 @@ from pyethapp.accounts import mk_privkey
 from pyethapp.console_service import Console
 from pyethapp.db_service import DBService
 from pyethapp.jsonrpc import JSONRPCServer
-from pygelf.handlers import GelfUdpHandler
 
 from hydrachain import __version__
 from hydrachain.hdc_service import ChainService
@@ -113,6 +112,10 @@ def runmultiple(ctx, num_validators, seed):
 
     config = ctx.obj['config']
     config['discovery']['bootstrap_nodes'] = [get_bootstrap_node(seed, base_port)]
+
+    # give some funds to be able to deploy contracts
+    for node_num in range(num_validators):
+        config['test_privkeys'].append(mk_privkey('%d:account:%d' % (seed, node_num)))
 
     apps = []
     for node_num in range(num_validators):
