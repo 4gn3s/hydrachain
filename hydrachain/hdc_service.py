@@ -9,6 +9,7 @@ from ethereum.chain import Chain
 from ethereum.refcount_db import RefcountDB
 from ethereum.blocks import Block, VerificationFailed
 from ethereum.transactions import Transaction
+from ethereum import exceptions
 from devp2p.service import WiredService
 from ethereum import config as ethereum_config
 import gevent
@@ -296,7 +297,7 @@ class ChainService(eth_ChainService):
             log.debug('deserialized', elapsed='%.4fs' % elapsed, ts=time.time(),
                       gas_used=block.gas_used, gpsec=self.gpsec(block.gas_used, elapsed))
             assert block.header.check_pow()
-        except processblock.InvalidTransaction as e:
+        except exceptions.InvalidTransaction as e:
             log.warn('invalid transaction', block=t_block, error=e, FIXME='ban node')
             return
         except VerificationFailed as e:
