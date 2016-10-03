@@ -41,6 +41,7 @@ import ethereum.specials as specials
 import ethereum.utils as utils
 import ethereum.vm as vm
 from ethereum import slogging
+from ethereum import exceptions
 from ethereum.transactions import Transaction
 from ethereum.utils import encode_int, zpad, big_endian_to_int, int_to_big_endian
 
@@ -574,7 +575,7 @@ def test_call(block, sender, to, data='', gasprice=0, value=0):
 
     try:
         success, output = processblock.apply_transaction(test_block, tx)
-    except processblock.InvalidTransaction as e:
+    except exceptions.InvalidTransaction as e:
         success = False
     assert block.state_root == state_root_before
     if success:
